@@ -1,0 +1,81 @@
+---
+title: "hwk3"
+author: "Stephen Carroll"
+format: html
+editor: visual
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+# Load packages
+library(sf)
+library(stars)
+library(tmap)
+library(here)
+library(tidyverse)
+library(kableExtra)
+library(testthat)
+library(spData)
+library(spDataLarge)
+library(geodata)
+```
+
+```{r}
+#  Read in Houston road data
+roads <- read_sf(here("data", "data","gis_osm_roads_free_1.gpkg"), quiet = TRUE)
+
+#  Read in Houston house data
+houses <- read_sf(here("data", "data", "gis_osm_buildings_a_free_1.gpkg"), quiet = TRUE)
+
+#  Read in socioeconomic data
+socioeco <- st_read(here("data","data", "ACS_2019_5YR_TRACT_48_TEXAS.gdb"), layer = "ACS_2019_5YR_TRACT_48_TEXAS", quiet = TRUE)
+
+# Read in nightlight data
+
+# Data for 2021-02-07
+nightlight_07_05 <- stars::read_stars(here("data", "data","VNP46A1", "VNP46A1.A2021038.h08v05.001.2021039064328.tif"), quiet = TRUE)
+nightlight_07_06 <- stars::read_stars(here("data", "data", "VNP46A1", "VNP46A1.A2021038.h08v06.001.2021039064329.tif"), quiet = TRUE)
+  
+# Data for 2021-02-16
+nightlight_16_05 <- stars::read_stars(here("data", "data", "VNP46A1", "VNP46A1.A2021047.h08v05.001.2021048091106.tif"), quiet = TRUE)
+nightlight_16_06 <- stars::read_stars(here("data", "data", "VNP46A1", "VNP46A1.A2021047.h08v06.001.2021048091105.tif"), quiet = TRUE)
+```
+
+
+```{r}
+# Make a warning message to ensure CRS is the same across all data frames
+check_df_crs <- function() {
+  df_crs_comparisons <- list(  # Create a named list with comparisons
+    "roads vs houses" = st_crs(roads) == st_crs(houses),
+    "roads vs socioeco" = st_crs(roads) == st_crs(socioeco),
+    "houses vs socioeco" = st_crs(houses) == st_crs(socioeco),
+    "nightlight_07_05 vs nightlight_07_06" = st_crs(nightlight_07_05) == st_crs(nightlight_07_06), # Methodically check that all nightlight data uses the same CRS
+    "nightlight_07_05 vs nightlight_16_05" = st_crs(nightlight_07_05) == st_crs(nightlight_16_05),
+    "nightlight_07_05 vs nightlight_16_06" = st_crs(nightlight_07_05) == st_crs(nightlight_16_06)
+  )
+
+# Identify results that are FALSE by comparison name
+false_comparisons <- names(df_crs_comparisons)[!unlist(df_crs_comparisons)]
+
+if (length(false_comparisons) == 0) {
+    print("All CRS match. ")
+} else {
+    warning(paste(paste(false_comparisons, "CRS projections do not match.", collapse = " ")))
+  }
+}
+
+# Call warning function
+check_df_crs()
+```
+
+```{r}
+# Change the CRS of roads to match socioeco and houses
+socioeco <- st_transform(socioeco, crs = st_crs(houses))
+roads <- st_transform(roads, crs = st_crs(houses))
+
+# Call warning function again to ensure transformation worked
+check_df_crs()
+```
+
+
