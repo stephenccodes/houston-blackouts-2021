@@ -1,8 +1,16 @@
 ---
 title: "hwk3"
 author: "Stephen Carroll"
-format: html
-editor: visual
+date: last-modified
+execute: 
+  eval: true
+  warning: false
+  message: false
+  echo: true
+format:
+  html:
+    toc: true
+    code-fold: true
 editor_options: 
   chunk_output_type: console
 ---
@@ -19,16 +27,22 @@ library(testthat)
 library(spData)
 library(spDataLarge)
 library(geodata)
+library(raster)
 ```
 
 ```{r}
-#  Read in Houston road data
-roads <- read_sf(here("data", "data","gis_osm_roads_free_1.gpkg"), quiet = TRUE)
+# Read in Houston road data
+# Exclude data that doesn't include highways
+roads <- read_sf(here("data", "data","gis_osm_roads_free_1.gpkg"), query = "SELECT * FROM gis_osm_roads_free_1 WHERE fclass='motorway'", quiet = TRUE)
 
-#  Read in Houston house data
-houses <- read_sf(here("data", "data", "gis_osm_buildings_a_free_1.gpkg"), quiet = TRUE)
+# Read in Houston house data
+# Exclude non-residential buildings
+houses <- read_sf(here("data", "data", "gis_osm_buildings_a_free_1.gpkg"), query = "SELECT *
+FROM gis_osm_buildings_a_free_1
+WHERE (type IS NULL AND name IS NULL)
+OR type in ('residential', 'apartments', 'house', 'static_caravan', 'detached')", quiet = TRUE)
 
-#  Read in socioeconomic data
+# Read in socioeconomic data
 socioeco <- st_read(here("data","data", "ACS_2019_5YR_TRACT_48_TEXAS.gdb"), layer = "ACS_2019_5YR_TRACT_48_TEXAS", quiet = TRUE)
 
 # Read in nightlight data
@@ -50,7 +64,7 @@ check_df_crs <- function() {
     "roads vs houses" = st_crs(roads) == st_crs(houses),
     "roads vs socioeco" = st_crs(roads) == st_crs(socioeco),
     "houses vs socioeco" = st_crs(houses) == st_crs(socioeco),
-    "nightlight_07_05 vs nightlight_07_06" = st_crs(nightlight_07_05) == st_crs(nightlight_07_06), # Methodically check that all nightlight data uses the same CRS
+    "nightlight_07_05 vs nightlight_07_06" = st_crs(nightlight_07_05) == st_crs(nightlight_07_06), 
     "nightlight_07_05 vs nightlight_16_05" = st_crs(nightlight_07_05) == st_crs(nightlight_16_05),
     "nightlight_07_05 vs nightlight_16_06" = st_crs(nightlight_07_05) == st_crs(nightlight_16_06)
   )
@@ -78,4 +92,67 @@ roads <- st_transform(roads, crs = st_crs(houses))
 check_df_crs()
 ```
 
+
+### Find locations that experienced a blackout by creating a mask
+
+```{r}
+rast(nightlight_07_06)
+```
+
+
+```{r}
+# Combine the raster data to show all of Houston for the 7th 
+lights_07 <- st_mosaic(nightlight_07_05, nightlight_07_06)
+
+# Combine the raster data to show all of Houston for the 16th
+lights_16 <- st_mosaic(nightlight_16_05, nightlight_16_06)
+```
+
+```{r}
+# Create a mask for the 7th
+lights_07_mask <- lights_07
+
+# Create a mask for the 16th
+lights_16_mask <- lights_16
+
+# Create a clip variable with the extent of Houston
+clip <- SpatialPoints(rast(xmin = -96.5, xmax = -94.5, ymin = 29, ymax = 30.5))
+
+# Clip the data to the extent of Houston
+lights_16_mask_clip <- lights_16_mask[clip]
+lights_07_mask_clip <- lights_07_mask[clip]
+```
+
+```{r}
+# Set all cells with values less than 200 to NA
+lights_16_mask_clip[lights_16_mask_clip < 200] <- NA
+lights_07_mask_clip[lights_07_mask_clip < 200] <- NA
+
+```
+
+```{r}
+tm_shape(lights_07_mask_clip) +
+  tm_raster() +
+  tm_layout(legend.outside = TRUE, bg.color = "black")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+exclude highways from analysis
+
+dentify homes that experienced blackouts by combining the locations of homes and blackouts
+
+identify the census tracts likely impacted by blackout
 
