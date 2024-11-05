@@ -48,12 +48,12 @@ socioeco <- st_read(here("data","data", "ACS_2019_5YR_TRACT_48_TEXAS.gdb"), laye
 # Read in nightlight data
 
 # Data for 2021-02-07
-nightlight_07_05 <- rast(here("data", "data","VNP46A1", "VNP46A1.A2021038.h08v05.001.2021039064328.tif"), quiet = TRUE)
-nightlight_07_06 <- rast(here("data", "data", "VNP46A1", "VNP46A1.A2021038.h08v06.001.2021039064329.tif"), quiet = TRUE)
+nightlight_07_05 <- rast(here("data", "data","VNP46A1", "VNP46A1.A2021038.h08v05.001.2021039064328.tif"))
+nightlight_07_06 <- rast(here("data", "data", "VNP46A1", "VNP46A1.A2021038.h08v06.001.2021039064329.tif"))
   
 # Data for 2021-02-16
-nightlight_16_05 <- rast(here("data", "data", "VNP46A1", "VNP46A1.A2021047.h08v05.001.2021048091106.tif"), quiet = TRUE)
-nightlight_16_06 <- rast(here("data", "data", "VNP46A1", "VNP46A1.A2021047.h08v06.001.2021048091105.tif"), quiet = TRUE)
+nightlight_16_05 <- rast(here("data", "data", "VNP46A1", "VNP46A1.A2021047.h08v05.001.2021048091106.tif"))
+nightlight_16_06 <- rast(here("data", "data", "VNP46A1", "VNP46A1.A2021047.h08v06.001.2021048091105.tif"))
 ```
 
 
@@ -92,22 +92,69 @@ roads <- st_transform(roads, crs = st_crs(houses))
 check_df_crs()
 ```
 
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 ### Find locations that experienced a blackout by creating a mask
 
 ```{r}
-rast(nightlight_07_06)
+# Combine the raster data to show all of Houston for the 7th 
+lights_07 <- merge(nightlight_07_05, nightlight_07_06)
+
+# Combine the raster data to show all of Houston for the 16th
+lights_16 <- merge(nightlight_16_05, nightlight_16_06)
+
+
+# Find the change in light intensity between the two days
+lights_diff <- lights_16 - lights_07
+```
+
+```{r}
+# Set all cells with values less than 200 to NA
+lights_diff[lights_diff < 200] <- NA
+
+```
+
+```{r}
+# Use coordinates for the Houston area to make a data frame
+coords <- data.frame(x = c(-96.5, -96.5, -94.5, -94.5), 
+                     y = c(29, 30.5, 30.5, 29))
+
+# Make the data frame a spatial object 
+coordinates(coords) <- ~ x + y
+
+# Change the coords into a polygon object called bbox
+bbox <- Polygon(coords)
+
+# Make a spatial polygon that contains the coord bbox
+houston_box <- SpatialPolygons(list(Polygons(list(bbox), "bbox")))
+```
+
+```{r}
+# Crop raster to extent of vector object
+lights_cropped <- crop(lights_diff, houston_box)
 ```
 
 
 ```{r}
-# Combine the raster data to show all of Houston for the 7th 
-lights_07 <- st_mosaic(nightlight_07_05, nightlight_07_06)
-
-# Combine the raster data to show all of Houston for the 16th
-lights_16 <- st_mosaic(nightlight_16_05, nightlight_16_06)
+# Transform the cropped data to vector objects (polygons)
+lights_croppped_vec <- as.polygons(lights_cropped) %>% 
+  st_as_sf() %>%
+  st_make_valid() 
 ```
 
+
+```{r}
+# Change the CRS to EPSG:3083
+lights_croppped_vec <- st_transform(lights_croppped_vec, crs = "EPSG:3083")
+```
+
+
+
+
+
+
+# Use st_union below
 ```{r}
 # Create a mask for the 7th
 lights_07_mask <- lights_07
@@ -116,23 +163,18 @@ lights_07_mask <- lights_07
 lights_16_mask <- lights_16
 
 # Create a clip variable with the extent of Houston
-clip <- SpatialPoints(rast(xmin = -96.5, xmax = -94.5, ymin = 29, ymax = 30.5))
+clip <- bbox()
 
 # Clip the data to the extent of Houston
 lights_16_mask_clip <- lights_16_mask[clip]
 lights_07_mask_clip <- lights_07_mask[clip]
 ```
 
-```{r}
-# Set all cells with values less than 200 to NA
-lights_16_mask_clip[lights_16_mask_clip < 200] <- NA
-lights_07_mask_clip[lights_07_mask_clip < 200] <- NA
 
-```
 
 ```{r}
-tm_shape(lights_07_mask_clip) +
-  tm_raster() +
+tm_shape(lights_croppped_vec) +
+  tm_polygons() +
   tm_layout(legend.outside = TRUE, bg.color = "black")
 ```
 
