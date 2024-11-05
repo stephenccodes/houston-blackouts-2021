@@ -135,7 +135,6 @@ houston_box <- SpatialPolygons(list(Polygons(list(bbox), "bbox")))
 lights_cropped <- crop(lights_diff, houston_box)
 ```
 
-
 ```{r}
 # Transform the cropped data to vector objects (polygons)
 lights_croppped_vec <- as.polygons(lights_cropped) %>% 
@@ -143,18 +142,14 @@ lights_croppped_vec <- as.polygons(lights_cropped) %>%
   st_make_valid() 
 ```
 
-
 ```{r}
 # Change the CRS to EPSG:3083
-lights_croppped_vec <- st_transform(lights_croppped_vec, crs = "EPSG:3083")
+lights_cropped_vec <- st_transform(lights_croppped_vec, crs = "EPSG:3083")
 ```
 
 
 
-
-
-
-# Use st_union below
+XXXXXXXXXXXXXXXXXXXXXXXXX
 ```{r}
 # Create a mask for the 7th
 lights_07_mask <- lights_07
@@ -169,13 +164,34 @@ clip <- bbox()
 lights_16_mask_clip <- lights_16_mask[clip]
 lights_07_mask_clip <- lights_07_mask[clip]
 ```
+XXXXXXXXXXXXXXXXXX
 
-
-
+XXXXXXXXXXXXXXX
 ```{r}
 tm_shape(lights_croppped_vec) +
   tm_polygons() +
   tm_layout(legend.outside = TRUE, bg.color = "black")
+```
+XXXXXXXXXXXXXXXXX
+
+
+Exclude highways from the cropped blackout mask
+
+# Use st_union below
+
+# st_difference??
+
+```{r}
+if (st_crs(roads)$units == st_crs(lights_cropped_vec)$units) {
+  print("CRS and units match.")
+} else{ 
+  print("Fix the CRS and units")
+# Make a variable for the CRS of the Houston lights dataset
+crs_lights_cropped <- st_crs(lights_cropped_vec) 
+
+# Match this CRS variable with the roads dataset
+roads <- st_transform(roads, crs = crs_lights_cropped)
+}
 ```
 
 
@@ -183,18 +199,14 @@ tm_shape(lights_croppped_vec) +
 
 
 
+```{r}
+tm_shape(roads) +
+  tm_lines() +
+  tm_layout(legend.outside = TRUE, bg.color = "white")
+```
 
 
-
-
-
-
-
-
-
-exclude highways from analysis
-
-dentify homes that experienced blackouts by combining the locations of homes and blackouts
+Identify homes that experienced blackouts by combining the locations of homes and blackouts
 
 identify the census tracts likely impacted by blackout
 
