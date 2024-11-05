@@ -177,32 +177,44 @@ XXXXXXXXXXXXXXXXX
 
 Exclude highways from the cropped blackout mask
 
-# Use st_union below
-
-# st_difference??
-
+XXXXXXXXXXXXXXX
+MAke a warnign test below for CRS
+XXXXXXXXXXXXXXXX
 ```{r}
-if (st_crs(roads)$units == st_crs(lights_cropped_vec)$units) {
-  print("CRS and units match.")
-} else{ 
-  print("Fix the CRS and units")
 # Make a variable for the CRS of the Houston lights dataset
 crs_lights_cropped <- st_crs(lights_cropped_vec) 
 
 # Match this CRS variable with the roads dataset
 roads <- st_transform(roads, crs = crs_lights_cropped)
-}
 ```
 
+```{r}
+# Make a buffer of 200m to exclude highways and the surrounding areas
+roads_buffer_200 <- st_buffer(roads, dist = 200)
 
-
-
-
+# Unionize the polygons into one object and make it valid
+roads_buffer_union <- st_union(roads_buffer_200) %>%
+  st_make_valid()
+```
 
 ```{r}
-tm_shape(roads) +
-  tm_lines() +
-  tm_layout(legend.outside = TRUE, bg.color = "white")
+# Find the area that had blackouts that are further than 200m from a highway 
+lights_hwy_buffer <- st_difference(lights_cropped_vec, roads_buffer_union)
+```
+
+```{r}
+# Make a test map that shows the new light map with a highway buffer
+tm_shape(lights_hwy_buffer) +
+  tm_polygons() +
+  tm_layout(legend.outside = TRUE, bg.color = "black")
+```
+
+```{r}
+# Make a test map that shows the light map for the Houston area to compare the two
+tm_shape(lights_cropped_vec) +
+  tm_polygons() +
+  tm_layout(legend.outside = TRUE, bg.color = "black")
+
 ```
 
 
@@ -210,3 +222,4 @@ Identify homes that experienced blackouts by combining the locations of homes an
 
 identify the census tracts likely impacted by blackout
 
+# Plot comparing dist. of median incomes. refer to HW#2 or example
