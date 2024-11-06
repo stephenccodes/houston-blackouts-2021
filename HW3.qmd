@@ -115,6 +115,10 @@ lights_diff[lights_diff < 200] <- NA
 
 ```
 
+XXXX
+FIND A WAY TO EXPLAIN THIS
+XXXX
+
 ```{r}
 # Use coordinates for the Houston area to make a data frame
 coords <- data.frame(x = c(-96.5, -96.5, -94.5, -94.5), 
@@ -148,21 +152,20 @@ lights_cropped_vec <- st_transform(lights_croppped_vec, crs = "EPSG:3083")
 ```
 
 
-
 XXXXXXXXXXXXXXXXXXXXXXXXX
 ```{r}
 # Create a mask for the 7th
-lights_07_mask <- lights_07
+#lights_07_mask <- lights_07
 
 # Create a mask for the 16th
-lights_16_mask <- lights_16
+#lights_16_mask <- lights_16
 
 # Create a clip variable with the extent of Houston
-clip <- bbox()
+#clip <- bbox()
 
 # Clip the data to the extent of Houston
-lights_16_mask_clip <- lights_16_mask[clip]
-lights_07_mask_clip <- lights_07_mask[clip]
+#lights_16_mask_clip <- lights_16_mask[clip]
+#lights_07_mask_clip <- lights_07_mask[clip]
 ```
 XXXXXXXXXXXXXXXXXX
 
@@ -204,21 +207,40 @@ lights_hwy_buffer <- st_difference(lights_cropped_vec, roads_buffer_union)
 
 ```{r}
 # Make a test map that shows the new light map with a highway buffer
-tm_shape(lights_hwy_buffer) +
+lights_hwy_buffer_map <- tm_shape(lights_hwy_buffer) +
   tm_polygons() +
   tm_layout(legend.outside = TRUE, bg.color = "black")
 ```
 
 ```{r}
 # Make a test map that shows the light map for the Houston area to compare the two
-tm_shape(lights_cropped_vec) +
+lights_cropped_map <- tm_shape(lights_cropped_vec) +
   tm_polygons() +
   tm_layout(legend.outside = TRUE, bg.color = "black")
 
+tmap_arrange(lights_cropped_map, lights_hwy_buffer_map, ncol = 2)
+```
+
+Identify homes that experienced blackouts by combining the locations of homes and blackouts
+
+```{r}
+## Test the CRS here
+#st_crs(lights_hwy_buffer) == st_crs(houses)
+
+crs_lights_hwy_buffer <- st_crs(lights_hwy_buffer)
+
+houses <- st_transform(houses, crs = crs_lights_hwy_buffer)
+
+blackout_houses <- st_intersection(lights_hwy_buffer, houses)
+
+blackout_houses_map <- tm_shape(blackout_houses) +
+  tm_dots() +
+  tm_layout(legend.outside = TRUE, bg.color = "white")
+
+blackout_houses_map
 ```
 
 
-Identify homes that experienced blackouts by combining the locations of homes and blackouts
 
 identify the census tracts likely impacted by blackout
 
