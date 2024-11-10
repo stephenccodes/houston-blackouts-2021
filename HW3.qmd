@@ -190,8 +190,7 @@ if (st_crs(roads)$units == "m") {
 
 # Make a buffer of 200m to exclude highways and the surrounding areas
 roads_buffer_200 <- st_buffer(roads, dist = 200) %>%
-  st_union()  %>%
-  st_make_valid()
+  st_union()
 
 # Unionize the polygons into one object and make it valid
 #roads_buffer_union <- st_union(roads_buffer_200) %>%
@@ -204,7 +203,7 @@ roads_buffer_200 <- st_buffer(roads, dist = 200) %>%
 lights_hwy_buffer <- st_difference(houston_blackout, roads_buffer_200)
 ```
 
-
+Identify homes that experienced blackouts by combining the locations of homes and blackouts
 ```{r}
 # Test that the units of roads are already in meters
 if (st_crs(houses) == st_crs(lights_hwy_buffer)) {
@@ -218,23 +217,40 @@ blackout_houses <- st_join(houses, lights_hwy_buffer, join = st_intersects)
 # Find the number of residential buildings that suffered a blackout
 number_residential_blackout <- nrow(blackout_houses)
 
-print(paste(number_residential_blackout, "residential buildings in Houston suffered a blackout during the storm in February, 2021."))
+print(paste("An estimated", number_residential_blackout, "residential buildings in Houston suffered a blackout during the storms in February, 2021."))
+```
+
+
+```{r}
+# Make a map of the homes in in Houston that lost power
+blackout_houses_map <- tm_shape(tx_census, bbox = houston_box)+
+  tm_polygons(col = "beige")+
+tm_shape(blackout_houses) +
+  tm_polygons(col= "red") +
+tm_compass(size = 1.5, 
+           position = c("RIGHT","bottom")) + 
+tm_scale_bar(lwd = 0.5, 
+             text.size = .4,
+             position = c("RIGHT","bottom")) +
+tm_layout(main.title = "Residential buildings in Houston that expereinced blAckouts")
+
+print(blackout_houses_map)
 ```
 
 ```{r}
 # Make a test map that shows the new light map with a highway buffer
-lights_hwy_buffer_map <- tm_shape(blackout_houses) +
-  tm_polygons() +
-  tm_layout(legend.outside = TRUE, bg.color = "black")
+#lights_hwy_buffer_map <- tm_shape(blackout_houses) +
+ # tm_polygons() +
+ # tm_layout(legend.outside = TRUE, bg.color = "black")
 ```
 
 ```{r}
 # Make a test map that shows the light map for the Houston area to compare the two
-lights_cropped_map <- tm_shape(lights_cropped_vec) +
-  tm_polygons() +
-  tm_layout(legend.outside = TRUE, bg.color = "black")
+#lights_cropped_map <- tm_shape(lights_cropped_vec) +
+#  tm_polygons() +
+ # tm_layout(legend.outside = TRUE, bg.color = "black")
 
-tmap_arrange(lights_cropped_map, lights_hwy_buffer_map, ncol = 2)
+#tmap_arrange(lights_cropped_map, lights_hwy_buffer_map, ncol = 2)
 ```
 
 Identify homes that experienced blackouts by combining the locations of homes and blackouts
@@ -245,45 +261,38 @@ Identify homes that experienced blackouts by combining the locations of homes an
 
 # Reconcile the CRS of the houses data and the buffered hwy light data
 # Make a variable of the CRS for the buffered hwy light data
-crs_lights_hwy_buffer <- st_crs(lights_hwy_buffer)
+#crs_lights_hwy_buffer <- st_crs(lights_hwy_buffer)
 
 # Set the houses CRS to this variable
-houses <- st_transform(houses, crs = crs_lights_hwy_buffer)
+#houses <- st_transform(houses, crs = crs_lights_hwy_buffer)
 
 ```
 
 ```{r}
 # Make an list of indices of the rows from 'houses' that intersect with the 'lights_hwy_buffer' data frame
-blackout_houses_index <- st_intersects(lights_hwy_buffer, houses)
+#blackout_houses_index <- st_intersects(lights_hwy_buffer, houses)
+
+
 ```
 
 ```{r}
 # Convert index list to a vector of indices
-blackout_houses_index <- blackout_houses_index %>%
-  unlist() %>% 
-  unique() # Remove duplicate values if present
+#blackout_houses_index <- blackout_houses_index %>%
+#  unlist() %>% 
+#  unique() # Remove duplicate values if present
 ```
 
 ```{r}
 # Make a subset dataframe of 'houses' using the corresponding values from the index vector
-blackout_houses <- houses[blackout_houses_index, ]
+#blackout_houses_OLD <- houses[blackout_houses_index, ]
+
 ```
-
-
-```{r}
-# Make a map of the houses that were in blackout areas
-blackout_houses_map <- tm_shape(blackout_houses) +
-  tm_polygons()
-
-blackout_houses_map
-```
-
 
 Identify the census tracts likely impacted by blackout
 
 ```{r}
 # create data frame that contains median income data and geoID
-texas_median_income <- texas_income %>% 
+texas_median_income <- tx_income %>% 
   dplyr::select(B19013e1, GEOID) %>% 
   rename(median_income = B19013e1, GEOID_Data = GEOID)
 
@@ -297,3 +306,21 @@ texas_census_blackouts <- st_filter(texas_income_census, blackout_residential)
 
 
 # Plot comparing dist. of median incomes. refer to HW#2 or example
+
+
+
+```{r}
+# Create a table for my citations
+citations_df = tibble::tribble(
+  ~Data,
+  ~Accesssed,
+  ~Link,
+  "Mapping Inequality, Digital Scholarship Lab at the University of Richmond.", "Accessed 10/21/24", "[https://dsl.richmond.edu/panorama/redlining/data](https://dsl.richmond.edu/panorama/redlining/data)",
+  "Geodatabase of State EJScreen Data at the Block Group Level.", "Accessed 10/14/24", "[https://www.epa.gov/ejscreen/download-ejscreen-data](https://www.epa.gov/ejscreen/download-ejscreen-data)",
+  "Global Biodiversity Information Facility.", "Accessed 10/14/23",
+  "[https://www.gbif.org/](https://www.gbif.org/)"
+)
+
+knitr::kable(citations_df, 
+             caption = "Data Citations")
+```
