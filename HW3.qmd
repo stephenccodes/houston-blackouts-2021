@@ -42,28 +42,30 @@ FROM gis_osm_buildings_a_free_1
 WHERE (type IS NULL AND name IS NULL)
 OR type in ('residential', 'apartments', 'house', 'static_caravan', 'detached')", quiet = TRUE)
 
-# Read in socioeconomic data
-socioeco <- st_read(here("data","data", "ACS_2019_5YR_TRACT_48_TEXAS.gdb"), layer = "ACS_2019_5YR_TRACT_48_TEXAS", quiet = TRUE)
+# Read in Texas census data
+tx_census <- st_read(here("data","data", "ACS_2019_5YR_TRACT_48_TEXAS.gdb"), layer = "ACS_2019_5YR_TRACT_48_TEXAS", quiet = TRUE)
+
+# Read in Texas census tract and income data
+tx_income <- st_read(here("data","data", "ACS_2019_5YR_TRACT_48_TEXAS.gdb"), layer =  "X19_INCOME", quiet = TRUE)
 
 # Read in nightlight data
-
 # Data for 2021-02-07
-nightlight_07_05 <- rast(here("data", "data","VNP46A1", "VNP46A1.A2021038.h08v05.001.2021039064328.tif"))
-nightlight_07_06 <- rast(here("data", "data", "VNP46A1", "VNP46A1.A2021038.h08v06.001.2021039064329.tif"))
+nightlight_07_05 <- read_stars(here("data", "data","VNP46A1", "VNP46A1.A2021038.h08v05.001.2021039064328.tif"))
+nightlight_07_06 <- read_stars(here("data", "data", "VNP46A1", "VNP46A1.A2021038.h08v06.001.2021039064329.tif"))
   
 # Data for 2021-02-16
-nightlight_16_05 <- rast(here("data", "data", "VNP46A1", "VNP46A1.A2021047.h08v05.001.2021048091106.tif"))
-nightlight_16_06 <- rast(here("data", "data", "VNP46A1", "VNP46A1.A2021047.h08v06.001.2021048091105.tif"))
+nightlight_16_05 <- read_stars(here("data", "data", "VNP46A1", "VNP46A1.A2021047.h08v05.001.2021048091106.tif"))
+nightlight_16_06 <- read_stars(here("data", "data", "VNP46A1", "VNP46A1.A2021047.h08v06.001.2021048091105.tif"))
 ```
 
 
 ```{r}
-# Make a warning message to ensure CRS is the same across all data frames
+# Make a warning message to ensure CRS is the same across all geo-data frames
 check_df_crs <- function() {
   df_crs_comparisons <- list(  # Create a named list with comparisons
     "roads vs houses" = st_crs(roads) == st_crs(houses),
-    "roads vs socioeco" = st_crs(roads) == st_crs(socioeco),
-    "houses vs socioeco" = st_crs(houses) == st_crs(socioeco),
+    "roads vs tx_census" = st_crs(roads) == st_crs(tx_census),
+    "houses vs tx_census" = st_crs(houses) == st_crs(tx_census),
     "nightlight_07_05 vs nightlight_07_06" = st_crs(nightlight_07_05) == st_crs(nightlight_07_06), 
     "nightlight_07_05 vs nightlight_16_05" = st_crs(nightlight_07_05) == st_crs(nightlight_16_05),
     "nightlight_07_05 vs nightlight_16_06" = st_crs(nightlight_07_05) == st_crs(nightlight_16_06)
@@ -71,7 +73,6 @@ check_df_crs <- function() {
 
 # Identify results that are FALSE by comparison name
 false_comparisons <- names(df_crs_comparisons)[!unlist(df_crs_comparisons)]
-
 if (length(false_comparisons) == 0) {
     print("All CRS match. ")
 } else {
@@ -84,131 +85,145 @@ check_df_crs()
 ```
 
 ```{r}
-# Change the CRS of roads to match socioeco and houses
-socioeco <- st_transform(socioeco, crs = st_crs(houses))
+# Change the CRS of roads and tx_income to match tx_census and houses
+tx_census <- st_transform(tx_census, crs = st_crs(houses))
 roads <- st_transform(roads, crs = st_crs(houses))
+#tx_income <- st_transform(tx_income, crs = st_crs(houses))
 
 # Call warning function again to ensure transformation worked
 check_df_crs()
 ```
 
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-
-### Find locations that experienced a blackout by creating a mask
-
+### A set of maps comparing night light intensities before and after the first to storms
 ```{r}
 # Combine the raster data to show all of Houston for the 7th 
-lights_07 <- merge(nightlight_07_05, nightlight_07_06)
+lights_07 <- st_mosaic(nightlight_07_05, nightlight_07_06)
 
 # Combine the raster data to show all of Houston for the 16th
-lights_16 <- merge(nightlight_16_05, nightlight_16_06)
+lights_16 <- st_mosaic(nightlight_16_05, nightlight_16_06)
+```
+
+```{r}
+# Make a map of the light intensity before the storm
+plot(lights_07, main = "Raster of 2021-02-16")
+```
+
+```{r}
+# Make a map of the light intensity before the storm
+plot(lights_16,  main = "Raster of 2021-02-17")
+```
 
 
+### Find locations that experienced a blackout by creating a mask
+```{r}
 # Find the change in light intensity between the two days
 lights_diff <- lights_16 - lights_07
 ```
 
 ```{r}
-# Set all cells with values less than 200 to NA
-lights_diff[lights_diff < 200] <- NA
-
-```
-
-XXXX
-FIND A WAY TO EXPLAIN THIS
-XXXX
-
-```{r}
-# Use coordinates for the Houston area to make a data frame
-coords <- data.frame(x = c(-96.5, -96.5, -94.5, -94.5), 
-                     y = c(29, 30.5, 30.5, 29))
-
-# Make the data frame a spatial object 
-coordinates(coords) <- ~ x + y
-
-# Change the coords into a polygon object called bbox
-bbox <- Polygon(coords)
-
-# Make a spatial polygon that contains the coord bbox
-houston_box <- SpatialPolygons(list(Polygons(list(bbox), "bbox")))
+# Set all cells with values less than 200 to NA, add labels
+blackout <- cut(lights_diff, c(200, Inf), labels = 'blackout')
 ```
 
 ```{r}
-# Crop raster to extent of vector object
-lights_cropped <- crop(lights_diff, houston_box)
+# Make a mask by vectorizing to make it a spatial feature
+blackout_vector <- st_as_sf(blackout) %>% 
+  st_make_valid() # Fix invalid geometries
 ```
+
+
+```{r}
+# Define the spatial parameters of the Houston area
+houston_coords <- cbind(x = c(-96.5, -96.5, -94.5, -94.5, -96.5), 
+                         y = c(29, 30.5, 30.5, 29, 29))
+
+# Turn these coordinates into a polygon
+houston_box <- st_sfc(st_polygon(list(houston_coords)), crs = 4326)
+
+# Make a mask for the Houston area 
+houston_mask <- st_intersects(blackout_vector, houston_box, sparse = FALSE) # Keep all values
+
+# Use the blackout_vector to show the the Houston area that had blackouts
+houston_blackout <- blackout_vector[houston_mask,]
+
+# Change the CRS to match the other Texas data sets
+houston_blackout <- st_transform(houston_blackout, crs = 3083)
+```
+
 
 ```{r}
 # Transform the cropped data to vector objects (polygons)
-lights_croppped_vec <- as.polygons(lights_cropped) %>% 
-  st_as_sf() %>%
-  st_make_valid() 
+#lights_croppped_vec <- as.polygons(lights_cropped) %>% 
+#  st_as_sf() %>%
+#  st_make_valid() 
 ```
 
 ```{r}
 # Change the CRS to EPSG:3083
-lights_cropped_vec <- st_transform(lights_croppped_vec, crs = "EPSG:3083")
+#lights_cropped_vec <- st_transform(lights_croppped_vec, crs = "EPSG:3083")
 ```
 
 
-XXXXXXXXXXXXXXXXXXXXXXXXX
 ```{r}
-# Create a mask for the 7th
-#lights_07_mask <- lights_07
-
-# Create a mask for the 16th
-#lights_16_mask <- lights_16
-
-# Create a clip variable with the extent of Houston
-#clip <- bbox()
-
-# Clip the data to the extent of Houston
-#lights_16_mask_clip <- lights_16_mask[clip]
-#lights_07_mask_clip <- lights_07_mask[clip]
-```
-XXXXXXXXXXXXXXXXXX
-
-XXXXXXXXXXXXXXX
-```{r}
-tm_shape(lights_croppped_vec) +
+tm_shape(houston_blackout) +
   tm_polygons() +
   tm_layout(legend.outside = TRUE, bg.color = "black")
 ```
-XXXXXXXXXXXXXXXXX
-
 
 Exclude highways from the cropped blackout mask
 
-XXXXXXXXXXXXXXX
-MAke a warnign test below for CRS
-XXXXXXXXXXXXXXXX
 ```{r}
 # Make a variable for the CRS of the Houston lights dataset
-crs_lights_cropped <- st_crs(lights_cropped_vec) 
+#crs_lights_cropped <- st_crs(lights_cropped_vec) 
 
 # Match this CRS variable with the roads dataset
-roads <- st_transform(roads, crs = crs_lights_cropped)
+roads <- st_transform(roads, crs = st_crs(houston_blackout))
 ```
 
 ```{r}
+# Test that the units of roads are already in meters
+if (st_crs(roads)$units == "m") {
+    print("Units are in meters.")
+} else {
+   stop("The units are not in meters.")  
+  }
+
 # Make a buffer of 200m to exclude highways and the surrounding areas
-roads_buffer_200 <- st_buffer(roads, dist = 200)
+roads_buffer_200 <- st_buffer(roads, dist = 200) %>%
+  st_union()  %>%
+  st_make_valid()
 
 # Unionize the polygons into one object and make it valid
-roads_buffer_union <- st_union(roads_buffer_200) %>%
-  st_make_valid() %>%
-  st_as_sf()
+#roads_buffer_union <- st_union(roads_buffer_200) %>%
+  #st_make_valid() %>%
+ # st_as_sf()
 ```
 
 ```{r}
 # Find the area that had blackouts that are further than 200m from a highway 
-lights_hwy_buffer <- st_difference(lights_cropped_vec, roads_buffer_union)
+lights_hwy_buffer <- st_difference(houston_blackout, roads_buffer_200)
+```
+
+
+```{r}
+# Test that the units of roads are already in meters
+if (st_crs(houses) == st_crs(lights_hwy_buffer)) {
+    print("CRS match")
+} else {
+   houses <- st_transform(houses, crs = st_crs(lights_hwy_buffer))  
+}
+
+blackout_houses <- st_join(houses, lights_hwy_buffer, join = st_intersects)
+
+# Find the number of residential buildings that suffered a blackout
+number_residential_blackout <- nrow(blackout_houses)
+
+print(paste(number_residential_blackout, "residential buildings in Houston suffered a blackout during the storm in February, 2021."))
 ```
 
 ```{r}
 # Make a test map that shows the new light map with a highway buffer
-lights_hwy_buffer_map <- tm_shape(lights_hwy_buffer) +
+lights_hwy_buffer_map <- tm_shape(blackout_houses) +
   tm_polygons() +
   tm_layout(legend.outside = TRUE, bg.color = "black")
 ```
@@ -238,7 +253,7 @@ houses <- st_transform(houses, crs = crs_lights_hwy_buffer)
 ```
 
 ```{r}
-# Make an list of indices of the rows from 'houses' that intersect with the 'lights_hwy_buffer' dataframe
+# Make an list of indices of the rows from 'houses' that intersect with the 'lights_hwy_buffer' data frame
 blackout_houses_index <- st_intersects(lights_hwy_buffer, houses)
 ```
 
@@ -264,7 +279,21 @@ blackout_houses_map
 ```
 
 
-identify the census tracts likely impacted by blackout
+Identify the census tracts likely impacted by blackout
+
+```{r}
+# create data frame that contains median income data and geoID
+texas_median_income <- texas_income %>% 
+  dplyr::select(B19013e1, GEOID) %>% 
+  rename(median_income = B19013e1, GEOID_Data = GEOID)
+
+# join the income data to census tract geometries in Texas
+texas_income_census <- left_join(texas_census_reproj, texas_median_income, by = "GEOID_Data")
+
+# join the census tract data with residential buildings determined to be impacted by blackouts
+texas_census_blackouts <- st_filter(texas_income_census, blackout_residential) 
+```
+
 
 
 # Plot comparing dist. of median incomes. refer to HW#2 or example
