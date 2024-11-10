@@ -105,12 +105,12 @@ lights_16 <- st_mosaic(nightlight_16_05, nightlight_16_06)
 
 ```{r}
 # Make a map of the light intensity before the storm
-plot(lights_07, main = "Raster of 2021-02-16")
+plot(lights_07, main = "Light intensity of Houston Feb. 7th, 2021")
 ```
 
 ```{r}
 # Make a map of the light intensity before the storm
-plot(lights_16,  main = "Raster of 2021-02-17")
+plot(lights_16,  main = "Light intensity of Houston Feb. 16th, 2021")
 ```
 
 
@@ -220,7 +220,6 @@ number_residential_blackout <- nrow(blackout_houses)
 print(paste("An estimated", number_residential_blackout, "residential buildings in Houston suffered a blackout during the storms in February, 2021."))
 ```
 
-
 ```{r}
 # Make a map of the homes in in Houston that lost power
 blackout_houses_map <- tm_shape(tx_census, bbox = houston_box)+
@@ -291,18 +290,26 @@ Identify homes that experienced blackouts by combining the locations of homes an
 Identify the census tracts likely impacted by blackout
 
 ```{r}
-# create data frame that contains median income data and geoID
-texas_median_income <- tx_income %>% 
+# Make a data frame that contains median income data and geoID
+tx_median_income <- tx_income %>% 
   dplyr::select(B19013e1, GEOID) %>% 
-  rename(median_income = B19013e1, GEOID_Data = GEOID)
+  rename(median_income = B19013e1, # Column or median income found in metadata 
+         GEOID_Data = GEOID) # Rename column so there is a common column in tx_census
 
-# join the income data to census tract geometries in Texas
-texas_income_census <- left_join(texas_census_reproj, texas_median_income, by = "GEOID_Data")
+# Combine the Texas income data to Texas census tract data 
+tx_income_census <- left_join(tx_census, tx_median_income, by = "GEOID_Data")
 
-# join the census tract data with residential buildings determined to be impacted by blackouts
-texas_census_blackouts <- st_filter(texas_income_census, blackout_residential) 
+
+# Test that the CRS of tx_income_census matches the CRS of blackout_houses and transform if false
+if (st_crs(tx_income_census) == st_crs(blackout_houses)) {
+    print("CRS match")
+} else {
+   tx_income_census <- st_transform(tx_income_census, crs = st_crs(blackout_houses))  
+}
+
+# Join the Texas census tract data with residential buildings affected by blackouts
+tx_census_blackouts <- st_filter(tx_income_census, blackout_houses) 
 ```
-
 
 
 # Plot comparing dist. of median incomes. refer to HW#2 or example
