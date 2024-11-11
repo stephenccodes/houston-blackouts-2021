@@ -311,8 +311,17 @@ if (st_crs(tx_income_census) == st_crs(blackout_houses)) {
 tx_census_blackouts <- st_filter(tx_income_census, blackout_houses) 
 ```
 
+```{r}
+# Crop texas income dtaa to the Houston area
+houston_income_census <- st_crop(tx_income_census, houston_box) 
 
-# Plot comparing dist. of median incomes. refer to HW#2 or example
+# spatial selection of census tracts that experienced blackouts, using bracket selection and default st_intersects argument
+census_homes_cropped <- census_income[homes_blackout, ] 
+census_homes_cropped <- st_filter(tx_income_census, homes_blackout)
+# making centroids to show which census tracts had blackouts
+cropped_centroids <- st_centroid(census_homes_cropped) # using our dataset we got from the bracket-selection method and st_intersects between census + income data and buildings in blackout areas
+```
+
 
 
 
