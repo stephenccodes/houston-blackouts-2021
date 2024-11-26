@@ -201,7 +201,7 @@ tm_shape(blackout_houses) +
 tm_compass(size = 1.5, 
            position = c(0.87, 0.11)) + 
 tm_scale_bar(width = .18,
-             position = c(0.9, 0.03)) +
+             position = c(0.73, 0.03)) +
 tm_layout(main.title = "Residential Buildings Affected by Blackout \n(Houston, Feb. 2021)",
           main.title.position = "center",
           bg.color = "lightblue")
