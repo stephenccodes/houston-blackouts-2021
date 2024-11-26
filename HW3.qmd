@@ -1,6 +1,6 @@
 ---
 title: "EDS 223 Homework Assignment #3"
-subtitle: "Exploring Light Intensity Change from Winter Storms in Houston, TX"
+subtitle: "Identifying the Impacts of Severe Winter Storms in Houston, TX"
 author: "Stephen Carroll"
 date: last-modified
 execute: 
