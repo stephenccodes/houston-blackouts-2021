@@ -28,11 +28,12 @@ The `stars` and `terra` packages were useful for working with raster data, and t
 
 ## Repository Structure
 ```
+├── houston_blackouts_files
 ├── .gitignore
-├── README.md
-├── texas_power_crisis.Rproj
-├── texas_power_crisis.html # Rendered document
-└── texas_power_crisis.qmd # Quarto document detailing the analysis
+├── houston_blackouts.Rproj
+├── houston_blackouts.html # Rendered document
+├── houston_blackouts.qmd # Quarto document detailing the analysis
+└── README.md
 ```
 ## Data Access
 
