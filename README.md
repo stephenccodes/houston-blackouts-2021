@@ -1,5 +1,5 @@
 # Houston Winter Blackouts of 2021
-## Analyzing deomgraphic correlation
+## Analyzing demographic correlation
 
 By [Stephen Carroll](https://stephenccodes.github.io./) [@stephenccodes](https://github.com/stephenccodes)
 
